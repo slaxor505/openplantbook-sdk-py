@@ -1,0 +1,6 @@
+/dist/
+/docs/_build/
+/config.yaml
+/openplantbook_sdk.egg-info/
+/.idea/
+/build/

@@ -1,0 +1,9 @@
+# TODO O: Docs
+# TODO V: Tests
+# TODO 1: PIPY metadata
+# TODO V: Decide on input data format - perhaps JTSDocument
+# TODO 1: Handle different sensor data types
+# TODO 1: Check compatibility with existing
+# TODO 2: Upload to PIpy
+# TODO 2: Replace and test with OpenPlantbook HASS component
+# TODO N: Paging support for plant_search
