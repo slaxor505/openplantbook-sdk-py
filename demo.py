@@ -103,6 +103,6 @@ print(res)
 # res = asyncio.run(api.plant_data_upload(
 #     custom_id=custom_id, pid=PID, data=df, location_country="Australia"))
 
-print(res)
+# print(res)
 
 
