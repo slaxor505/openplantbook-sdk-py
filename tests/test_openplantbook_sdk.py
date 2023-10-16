@@ -1,8 +1,6 @@
 import asyncio
 import json
 import unittest
-from datetime import datetime, timedelta
-from string import Template
 from pathlib import Path
 
 import numpy as np
@@ -42,7 +40,7 @@ class TestSdk(unittest.TestCase):
     def test_plant_detail(self):
         api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret)
 
-        response = asyncio.run(api.get_plant_detail(self.test_pid))
+        response = asyncio.run(api.plant_detail_get(self.test_pid))
 
         test_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
         self.assertEqual(json.dumps(response), test_json)

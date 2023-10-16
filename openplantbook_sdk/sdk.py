@@ -67,10 +67,10 @@ class OpenPlantBookApi:
             return None
 
         except Exception as e:  # pylint: disable=broad-except
-            _LOGGER.error("Unable to connect to openplantbook: %s", str(e))
+            _LOGGER.error("Unable to connect to OpenPlantbook: %s", str(e))
             raise
 
-    async def get_plant_detail(self, pid: str):
+    async def plant_detail_get(self, pid: str):
         """
         Retrieve plant details using Plant ID (or PID)
 
@@ -252,7 +252,7 @@ class OpenPlantBookApi:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
 
                 url = f"{PLANTBOOK_BASEURL}/sensor-data/upload"
-                async with session.post(url, json=jts_doc.toJSON()) as result:
+                async with session.post(url, json=jts_doc.toJSON(), params={"dry_run": str(dry_run)}) as result:
                     _LOGGER.debug("Uploading sensor data %s", jts_doc)
                     res = await result.json(content_type=None)
                     return result.ok

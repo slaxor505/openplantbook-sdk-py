@@ -48,7 +48,7 @@ print("Getting details for a single plant...")
 
 try:
     plant = res['results'][0]
-    res = asyncio.run(api.get_plant_detail(plant['pid']))
+    res = asyncio.run(api.plant_detail_get(plant['pid']))
     print("Found:")
     print(tabulate(res.items(), headers=['Key', 'Value'], tablefmt="psql"))
 
