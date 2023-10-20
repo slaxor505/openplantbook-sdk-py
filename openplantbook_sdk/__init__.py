@@ -1,1 +1,3 @@
 from openplantbook_sdk.sdk import OpenPlantBookApi
+from openplantbook_sdk.sdk import MissingClientIdOrSecret
+from openplantbook_sdk.sdk import ValidationError
