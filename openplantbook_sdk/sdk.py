@@ -8,20 +8,24 @@ from json_timeseries import JtsDocument
 
 _LOGGER = logging.getLogger(__name__)
 
-PLANTBOOK_BASEURL = "https://open.plantbook.io/api/v1"
-# PLANTBOOK_BASEURL = "http://localhost:8000/api/v1"
-
-
 class OpenPlantBookApi:
     """
     Open Plantbook SDK class
     """
 
-    def __init__(self, client_id, secret):
-        """Initialize."""
+    def __init__(self, client_id, secret, base_url="https://open.plantbook.io/api/v1" ):
+        """Initialize
+        :param secret: OAuth client secret from Open PlantBook UI
+        :type secret: str
+        :param client_id: OAuth client ID from Open PlantBook UI
+        :type client_id: str
+        :param base_url: Plantbook base URL (only for testing)
+        :type base_url: str
+        """
         self.token = None
         self.client_id = client_id
         self.secret = secret
+        self._PLANTBOOK_BASEURL=base_url
 
     async def _get_plantbook_token(self):
         """
@@ -35,7 +39,7 @@ class OpenPlantBookApi:
                 _LOGGER.debug("Token is still valid")
                 return True
 
-        url = f"{PLANTBOOK_BASEURL}/token/"
+        url = f"{self._PLANTBOOK_BASEURL}/token/"
         data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -85,7 +89,7 @@ class OpenPlantBookApi:
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/plant/detail/{pid}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/detail/{pid}"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -126,7 +130,7 @@ class OpenPlantBookApi:
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/plant/search?limit=1000&alias={search_text}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/search?limit=1000&alias={search_text}"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -163,19 +167,18 @@ class OpenPlantBookApi:
 
         :param sensor_pid_map: Plant Instance to PlantID map. Dictionary id-pid
         :param location_by_ip: Allow to take location from IP address
-        :param location_country:
+        :param location_country: Country location of the plant
         :return: JSON dict with API response
         :rtype: dict
         :raise [ValidationError]: [Value of 'series' must be types of TimeSeries or List[TimeSeries]]
         """
-        # TODO continue with this docs string and docs
         try:
             await self._get_plantbook_token()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/sensor-data/instance"
+        url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -246,12 +249,12 @@ class OpenPlantBookApi:
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
 
-        url = f"{PLANTBOOK_BASEURL}/sensor-data/instance"
+        url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
 
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
 
-                url = f"{PLANTBOOK_BASEURL}/sensor-data/upload"
+                url = f"{self._PLANTBOOK_BASEURL}/sensor-data/upload"
                 async with session.post(url, json=jts_doc.toJSON(), params={"dry_run": str(dry_run)}) as result:
                     _LOGGER.debug("Uploading sensor data %s", jts_doc)
                     res = await result.json(content_type=None)
