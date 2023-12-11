@@ -202,7 +202,7 @@ class OpenPlantBookApi:
 
                     async with session.post(url, json=api_payload, raise_for_status=False) as result:
                         _LOGGER.debug("Registered sensor %s", api_payload)
-                        # TODO O: Handle 500 here
+
                         res = await result.json()
 
                         if str(result.status)[0] != "2":
