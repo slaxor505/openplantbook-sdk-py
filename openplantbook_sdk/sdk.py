@@ -8,6 +8,9 @@ from json_timeseries import JtsDocument
 
 _LOGGER = logging.getLogger(__name__)
 
+PLANTBOOK_BASEURL = "https://open.plantbook.io/api/v1"
+# PLANTBOOK_BASEURL = "http://localhost:8000/api/v1"
+
 
 class OpenPlantBookApi:
     """
