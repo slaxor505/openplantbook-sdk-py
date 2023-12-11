@@ -31,7 +31,7 @@ api = OpenPlantBookApi(config['client_id'], config['secret'])
 print(f"Searching the OpenPlantbook for {PID}...")
 
 try:
-    res = asyncio.run(api.plant_search(PID))
+    res = asyncio.run(api.async_plant_search(PID))
 except MissingClientIdOrSecret:
     print("Missing or invalid client id or secret")
     sys.exit()
@@ -48,7 +48,7 @@ print("Getting details for a single plant...")
 
 try:
     plant = res['results'][0]
-    res = asyncio.run(api.plant_detail_get(plant['pid']))
+    res = asyncio.run(api.async_plant_detail_get(plant['pid']))
     print("Found:")
     print(tabulate(res.items(), headers=['Key', 'Value'], tablefmt="psql"))
 
@@ -79,7 +79,7 @@ Create Plant instance
 print(f"Registering sensor for {PID}...")
 
 try:
-    res = asyncio.run(api.plant_instance_register(sensor_pid_map={SENSOR_ID: PID}, location_country="Australia"))
+    res = asyncio.run(api.async_plant_instance_register(sensor_pid_map={SENSOR_ID: PID}, location_country="Australia"))
 except ValidationError as err:
     print(err)
     sys.exit()

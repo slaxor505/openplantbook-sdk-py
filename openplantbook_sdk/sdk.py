@@ -8,22 +8,27 @@ from json_timeseries import JtsDocument
 
 _LOGGER = logging.getLogger(__name__)
 
-PLANTBOOK_BASEURL = "https://open.plantbook.io/api/v1"
-# PLANTBOOK_BASEURL = "http://localhost:8000/api/v1"
-
 
 class OpenPlantBookApi:
     """
     Open Plantbook SDK class
     """
 
-    def __init__(self, client_id, secret):
-        """Initialize."""
+    def __init__(self, client_id, secret, base_url="https://open.plantbook.io/api/v1"):
+        """Initialize
+        :param secret: OAuth client secret from Open PlantBook UI
+        :type secret: str
+        :param client_id: OAuth client ID from Open PlantBook UI
+        :type client_id: str
+        :param base_url: Plantbook base URL (only for testing)
+        :type base_url: str
+        """
         self.token = None
         self.client_id = client_id
         self.secret = secret
+        self._PLANTBOOK_BASEURL = base_url
 
-    async def _get_plantbook_token(self):
+    async def _async_get_token(self):
         """
         Get OAuth token
         """
@@ -35,7 +40,7 @@ class OpenPlantBookApi:
                 _LOGGER.debug("Token is still valid")
                 return True
 
-        url = f"{PLANTBOOK_BASEURL}/token/"
+        url = f"{self._PLANTBOOK_BASEURL}/token/"
         data = {
             "grant_type": "client_credentials",
             "client_id": self.client_id,
@@ -53,24 +58,24 @@ class OpenPlantBookApi:
                     raise PermissionError
         except PermissionError:
             _LOGGER.error("Wrong client id or secret")
-            return None
+            raise
         except aiohttp.ServerTimeoutError:
             # Maybe set up for a retry, or continue in a retry loop
             _LOGGER.error("Timeout connecting to {}".format(url))
-            return None
+            raise
         except aiohttp.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
-            return None
+            raise
         except aiohttp.ClientError as err:
             _LOGGER.error(err)
-            return None
+            raise
 
         except Exception as e:  # pylint: disable=broad-except
             _LOGGER.error("Unable to connect to OpenPlantbook: %s", str(e))
             raise
 
-    async def plant_detail_get(self, pid: str):
+    async def async_plant_detail_get(self, pid: str):
         """
         Retrieve plant details using Plant ID (or PID)
 
@@ -80,12 +85,12 @@ class OpenPlantBookApi:
         """
 
         try:
-            await self._get_plantbook_token()
+            await self._async_get_token()
         except Exception:
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/plant/detail/{pid}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/detail/{pid}"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -112,7 +117,7 @@ class OpenPlantBookApi:
 
         # return None
 
-    async def plant_search(self, search_text: str):
+    async def async_plant_search(self, search_text: str):
         """
         Search plant by search string
 
@@ -121,12 +126,12 @@ class OpenPlantBookApi:
         :rtype: dict
         """
         try:
-            await self._get_plantbook_token()
+            await self._async_get_token()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/plant/search?limit=1000&alias={search_text}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/search?limit=1000&alias={search_text}"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -150,32 +155,31 @@ class OpenPlantBookApi:
         # TODO: Handle Minimum len of search string
         # return None
 
-
     # async def async_post(self,session, url, api_payload):
     #
     #     async with session.post(url, json=api_payload, raise_for_status=False) as result:
     #         _LOGGER.debug("Registered sensor %s", api_payload)
     #         res = await result.json(content_type=None)
 
-    async def plant_instance_register(self, sensor_pid_map:dict, location_by_ip:bool=None, location_country:str=None):
+    async def async_plant_instance_register(self, sensor_pid_map: dict, location_by_ip: bool = None,
+                                            location_country: str = None):
         """
         Register a plant sensor
 
         :param sensor_pid_map: Plant Instance to PlantID map. Dictionary id-pid
         :param location_by_ip: Allow to take location from IP address
-        :param location_country:
+        :param location_country: Country location of the plant
         :return: JSON dict with API response
         :rtype: dict
         :raise [ValidationError]: [Value of 'series' must be types of TimeSeries or List[TimeSeries]]
         """
-        # TODO continue with this docs string and docs
         try:
-            await self._get_plantbook_token()
+            await self._async_get_token()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{PLANTBOOK_BASEURL}/sensor-data/instance"
+        url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -193,13 +197,21 @@ class OpenPlantBookApi:
                 results = []
                 for custom_id_value, pid_value in sensor_pid_map.items():
 
-                    api_payload['custom_id']=custom_id_value
-                    api_payload['pid']=pid_value
+                    api_payload['custom_id'] = custom_id_value
+                    api_payload['pid'] = pid_value
 
                     async with session.post(url, json=api_payload, raise_for_status=False) as result:
                         _LOGGER.debug("Registered sensor %s", api_payload)
+                        # TODO O: Handle 500 here
                         res = await result.json()
+
+                        if str(result.status)[0] != "2":
+                            _LOGGER.error(str(result.status) + ' ' + result.reason + ": " + str(res))
+                            raise aiohttp.ClientError
+
                         results.append(res)
+
+
                 return results
                 # TODO 2: Optimize as in https://www.twilio.com/blog/asynchronous-http-requests-in-python-with-aiohttp
                 #   tasks.append(asyncio.ensure_future(get_pokemon(session, url)))
@@ -218,13 +230,13 @@ class OpenPlantBookApi:
             _LOGGER.error("Too many redirects connecting to {}".format(url))
             return None
 
-        except aiohttp.ClientError as err:
-            _LOGGER.error(err)
-            return None
+        # except aiohttp.ClientError as err:
+        #     _LOGGER.error(err)
+        #     return None
 
         # return None
 
-    async def plant_data_upload(self, jts_doc: JtsDocument, dry_run=False):
+    async def async_plant_data_upload(self, jts_doc: JtsDocument, dry_run=False):
         """
         Upload plant's sensor data
 
@@ -237,7 +249,7 @@ class OpenPlantBookApi:
         """
 
         try:
-            await self._get_plantbook_token()
+            await self._async_get_token()
         except Exception:  # pylint: disable=broad-except
             _LOGGER.error("No plantbook token")
             raise
@@ -246,12 +258,12 @@ class OpenPlantBookApi:
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
 
-        url = f"{PLANTBOOK_BASEURL}/sensor-data/instance"
+        url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
 
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
 
-                url = f"{PLANTBOOK_BASEURL}/sensor-data/upload"
+                url = f"{self._PLANTBOOK_BASEURL}/sensor-data/upload"
                 async with session.post(url, json=jts_doc.toJSON(), params={"dry_run": str(dry_run)}) as result:
                     _LOGGER.debug("Uploading sensor data %s", jts_doc)
                     res = await result.json(content_type=None)
@@ -361,9 +373,12 @@ class OpenPlantBookApi:
     #         return None
     #
     #     return None
+
+
 class MissingClientIdOrSecret(Exception):
     """Exception for missing client_id or token."""
     pass
+
 
 class ValidationError(Exception):
     """Exception for validation error"""

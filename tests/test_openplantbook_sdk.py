@@ -20,6 +20,10 @@ class TestSdk(unittest.TestCase):
             config = yaml.load(f, Loader=yaml.FullLoader)
             self.client_id = config['client_id']
             self.client_secret = config['secret']
+            if config.get('base_url'):
+                self.base_url = config['base_url']
+            else:
+                self.base_url = "https://open.plantbook.io/api/v1"
         self.test_pid = "abelia chinensis"
         self.test_sensor_id = "Abelia 1 upstairs"
 
@@ -27,8 +31,8 @@ class TestSdk(unittest.TestCase):
     #     pass
 
     def test_search(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret)
-        response = asyncio.run(api.plant_search(self.test_pid))
+        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        response = asyncio.run(api.async_plant_search(self.test_pid))
 
         self.assertEqual(response['count'], 1)
         results_data = response.get('results')[0]
@@ -38,23 +42,23 @@ class TestSdk(unittest.TestCase):
         self.assertEqual(results_data['category'], 'Caprifoliaceae, Abelia')
 
     def test_plant_detail(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret)
+        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
 
-        response = asyncio.run(api.plant_detail_get(self.test_pid))
+        response = asyncio.run(api.async_plant_detail_get(self.test_pid))
 
         test_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
         self.assertEqual(json.dumps(response), test_json)
 
     def test_plant_instance_register_multiple(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret)
-        found_plants = asyncio.run(api.plant_search("acer"))['results'][:5]
+        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        found_plants = asyncio.run(api.async_plant_search("acer"))['results'][:5]
         pid_instance_map = {}
         location_country="Australia"
         for i in range(len(found_plants)):
-            the_pid=found_plants[i]['alias']
+            the_pid=found_plants[i]['pid']
             pid_instance_map["Sensor-"+str(i)]=the_pid
+        res = asyncio.run(api.async_plant_instance_register(sensor_pid_map=pid_instance_map, location_country=location_country))
 
-        res = asyncio.run(api.plant_instance_register(sensor_pid_map=pid_instance_map, location_country=location_country))
 
         for k,v in pid_instance_map.items():
             self.assertIn(k, json.dumps(res))
@@ -62,9 +66,9 @@ class TestSdk(unittest.TestCase):
             self.assertIn(location_country, json.dumps(res))
 
     def test_plant_data_upload(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret)
+        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
 
-        found_plants = asyncio.run(api.plant_search("acer"))['results'][:5]
+        found_plants = asyncio.run(api.async_plant_search("acer"))['results'][:5]
         pid_instance_map = {}
         jts_doc = JtsDocument()
         for i in range(len(found_plants)):
@@ -72,12 +76,12 @@ class TestSdk(unittest.TestCase):
             # Plant instance/Sensor ID
             sensor_id = "Sensor-" + str(i)
             # Corresponding PID/Plant ID
-            the_pid=found_plants[i]['alias']
+            the_pid=found_plants[i]['pid']
 
             # pid_instance_map["Sensor-"+str(i)]=the_pid
 
             # Register Plant Instance
-            res = asyncio.run(api.plant_instance_register(sensor_pid_map={sensor_id:the_pid}, location_country="Australia"))
+            res = asyncio.run(api.async_plant_instance_register(sensor_pid_map={sensor_id:the_pid}, location_country="Australia"))
 
             custom_id = res[0].get('id')
             # the same "plant_id" but different sensors identified by "name"
@@ -99,7 +103,7 @@ class TestSdk(unittest.TestCase):
 
             jts_doc.addSeries([temp, soil_moist, soil_ec, light_lux])
 
-        res = asyncio.run(api.plant_data_upload(jts_doc, dry_run=False))
+        res = asyncio.run(api.async_plant_data_upload(jts_doc, dry_run=False))
 
         # test_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
         self.assertEqual(res, True)
