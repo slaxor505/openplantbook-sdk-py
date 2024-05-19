@@ -165,16 +165,22 @@ class OpenPlantBookApi:
     #         res = await result.json(content_type=None)
 
     async def async_plant_instance_register(self, sensor_pid_map: dict, location_by_ip: bool = None,
-                                            location_country: str = None):
+                                            location_country: str = None, location_lon: float = None,
+                                            location_lat: float = None):
         """
         Register a plant sensor
 
-        :param sensor_pid_map: Plant Instance to PlantID map. Dictionary id-pid
+        :param sensor_pid_map: Plant Instance to PlantID map. Dictionary id-pid. ONLY 1 item is currently supported.
         :param location_by_ip: Allow to take location from IP address
         :param location_country: Country location of the plant
+        :param location_lon: Location longitude of the plant
+        :param location_lat: Location latitude of the plant
         :return: JSON dict with API response
         :rtype: dict
-        :raise [ValidationError]: [Value of 'series' must be types of TimeSeries or List[TimeSeries]]
+        :raise [ValidationError]: API could not validate JSON payload due to some errors which are returned within the exception's attribute 'errors'
+        :raise [aiohttp.ClientError]: [aiohttp client error exception]
+        :raise [aiohttp.ServerTimeoutError]: [aiohttp exception]
+        :raise [aiohttp.aiohttp.TooManyRedirects]: [aiohttp exception]
         """
         try:
             await self._async_get_token()
@@ -188,40 +194,46 @@ class OpenPlantBookApi:
         }
         api_payload = {
             "location_country": location_country,
-            "location_by_IP": location_by_ip
-            # "location_lon": "43.11",
-            # "location_lat": "-15.88",
+            "location_by_IP": location_by_ip,
+            "location_lon": location_lon,
+            "location_lat": location_lat,
             # "location_name": "Sydney",
             # "location_region": "New South Wales"
         }
+        # TODO TEST: Location values
+        clean_items = api_payload.copy()
+        for k, v in clean_items.items():
+            if v is None:
+                api_payload.pop(k)
+
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
 
                 results = []
                 for custom_id_value, pid_value in sensor_pid_map.items():
 
+                    # TODO N: Multiple items is not working properly because if failure occurs with one of the items
+                    #  the entire transaction stops and partial result is observed. I need to continue to create
+                    #  until the end and report back only faulty ones or rollback (not possible) entire transaction
                     api_payload['custom_id'] = custom_id_value
                     api_payload['pid'] = pid_value
 
                     async with session.post(url, json=api_payload, raise_for_status=False) as result:
-                        _LOGGER.debug("Registered sensor %s", api_payload)
-
                         res = await result.json()
+                        if result.status == 400 and res['type'] == "validation_error":
+                            raise ValidationError(res['errors'])
 
-                        if str(result.status)[0] != "2":
-                            _LOGGER.error(str(result.status) + ' ' + result.reason + ": " + str(res))
-                            raise aiohttp.ClientError
+                        result.raise_for_status()
 
                         results.append(res)
-
+                        _LOGGER.debug("Registered sensor: %s", api_payload)
 
                 return results
                 # TODO 2: Optimize as in https://www.twilio.com/blog/asynchronous-http-requests-in-python-with-aiohttp
                 #   tasks.append(asyncio.ensure_future(get_pokemon(session, url)))
                 # original_pokemon = await asyncio.gather(*tasks)
 
-        except ValidationError as err:
-            _LOGGER.error("Validation error {}".format(err))
+        except ValidationError as e:
             raise
 
         except aiohttp.ServerTimeoutError:
@@ -268,7 +280,7 @@ class OpenPlantBookApi:
 
                 url = f"{self._PLANTBOOK_BASEURL}/sensor-data/upload"
                 async with session.post(url, json=jts_doc.toJSON(), params={"dry_run": str(dry_run)}) as result:
-                    _LOGGER.debug("Uploading sensor data %s", jts_doc)
+                    _LOGGER.debug("Uploading sensor data: %s", jts_doc.toJSONString())
                     res = await result.json(content_type=None)
                     return result.ok
 
@@ -384,5 +396,9 @@ class MissingClientIdOrSecret(Exception):
 
 
 class ValidationError(Exception):
-    """Exception for validation error"""
-    pass
+    def __init__(self, errors, *args):
+        super().__init__(args)
+        self.errors = errors
+
+    def __str__(self):
+        return f'API returned {self.errors}'
