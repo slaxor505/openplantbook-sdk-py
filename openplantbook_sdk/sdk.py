@@ -78,11 +78,12 @@ class OpenPlantBookApi:
             _LOGGER.error("Unable to connect to OpenPlantbook: %s", str(e))
             raise
 
-    async def async_plant_detail_get(self, pid: str):
+    async def async_plant_detail_get(self, pid: str, lang: str = None):
         """
         Retrieve plant details using Plant ID (or PID)
 
-        :type pid: Plant ID string (PID)
+        :param pid: Plant ID string (PID)
+        :param lang: ISO 639-1 language code (e.g., 'en', 'de'); forwarded as 'lang' query parameter
         :return: API response as dict of JSON structure
         :rtype: dict
         """
@@ -97,9 +98,10 @@ class OpenPlantBookApi:
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
+        params = {"lang": lang} if lang else None
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-                async with session.get(url) as result:
+                async with session.get(url, params=params) as result:
                     _LOGGER.debug("Fetched data from %s", url)
                     res = await result.json()
                     return res
@@ -134,7 +136,7 @@ class OpenPlantBookApi:
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{self._PLANTBOOK_BASEURL}/plant/search?limit=1000&alias={search_text}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/search?alias={search_text}"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }

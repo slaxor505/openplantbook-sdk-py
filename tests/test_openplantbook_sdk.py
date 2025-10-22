@@ -47,8 +47,12 @@ class TestSdk(unittest.TestCase):
 
         response = asyncio.run(api.async_plant_detail_get(self.test_pid))
 
-        test_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
-        self.assertEqual(json.dumps(response), test_json)
+        expected_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
+        expected = json.loads(expected_json)
+        # Allow API to return additional fields; assert required fields are present and equal
+        for k, v in expected.items():
+            self.assertIn(k, response)
+            self.assertEqual(response[k], v)
 
     def test_plant_instance_register(self):
         api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
@@ -113,6 +117,7 @@ class TestSdk(unittest.TestCase):
         jts_doc = JtsDocument()
         for i in range(len(found_plants)):
 
+
             # Plant instance/Sensor ID
             sensor_id = "Sensor-" + str(i)
             # Corresponding PID/Plant ID
@@ -135,7 +140,7 @@ class TestSdk(unittest.TestCase):
             # generate fake values - 4 columns to provide 4 values for the above 4 measurements
             NUMBER_OF_PERIODS = 10
             dti = pd.date_range(pd.Timestamp.now(tz="Australia/Sydney"), periods=NUMBER_OF_PERIODS, freq="15min")
-            df = pd.DataFrame(np.random.default_rng().uniform(100, 1000, (NUMBER_OF_PERIODS, 4)), index=dti).astype(int)
+            df = pd.DataFrame(np.random.default_rng().uniform(100, 1000, (NUMBER_OF_PERIODS, 4)), index=dti)
 
             for ts, values in df.iterrows():
                 temp.insert(TsRecord(ts, values[0]))

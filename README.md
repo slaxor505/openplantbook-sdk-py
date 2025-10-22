@@ -25,7 +25,27 @@ from openplantbook_sdk import OpenPlantBookApi
 
 ## Usage
 
-See [demo.py](demo.py)
+Quick example (async):
+
+```python
+import asyncio
+from openplantbook_sdk import OpenPlantBookApi
+
+async def main():
+    api = OpenPlantBookApi("YOUR_CLIENT_ID", "YOUR_CLIENT_SECRET")
+    # Retrieve plant details with optional ISO 639-1 language code
+    details = await api.async_plant_detail_get("abelia chinensis", lang="de")
+    print(details["display_pid"])
+    # Search plants
+    results = await api.async_plant_search("abelia")
+    print(results["count"]) 
+
+asyncio.run(main())
+```
+
+- The `lang` parameter is optional; pass an ISO 639-1 code like "en", "de", "es" to localize fields when supported by the API.
+
+See [demo.py](demo.py) for a more complete walkthrough.
 
 
 ## License
