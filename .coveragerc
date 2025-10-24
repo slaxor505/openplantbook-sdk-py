@@ -1,0 +1,16 @@
+[run]
+branch = True
+source =
+    openplantbook_sdk
+omit =
+    tests/*
+    docs/*
+    */site-packages/*
+
+[report]
+show_missing = True
+skip_covered = False
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.: 
+    except Exception:  # pragma: no cover

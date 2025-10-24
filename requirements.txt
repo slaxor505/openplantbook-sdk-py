@@ -4,3 +4,5 @@ numpy
 pandas
 PyYAML
 tabulate
+coverage
+pytest

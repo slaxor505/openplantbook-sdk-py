@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python3 -m unittest tests/test_openplantbook_sdk.py && python3 -m build && twine check dist/* && twine upload dist/*
+python3 -m unittest discover -s tests -p "test_*.py" && python3 -m build && twine check dist/* && twine upload dist/*

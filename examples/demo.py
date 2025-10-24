@@ -15,7 +15,7 @@ PID = "abelia chinensis"
 SENSOR_ID="Abelia 1 upstairs"
 
 try:
-    with open(r'config.yaml') as f:
+    with open(r'../config.yaml') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 except FileNotFoundError:
     print("Config-file not found.")

@@ -78,12 +78,16 @@ class OpenPlantBookApi:
             _LOGGER.error("Unable to connect to OpenPlantbook: %s", str(e))
             raise
 
-    async def async_plant_detail_get(self, pid: str, lang: str = None):
+    async def async_plant_detail_get(self, pid: str, lang: str = None, params: dict = None, request_kwargs: dict = None):
         """
         Retrieve plant details using Plant ID (or PID)
 
         :param pid: Plant ID string (PID)
         :param lang: ISO 639-1 language code (e.g., 'en', 'de'); forwarded as 'lang' query parameter
+        :param params: Optional dict of additional query parameters to pass through to the API request. The 'lang'
+            value from the dedicated argument will be merged into this dict (and can be overridden here if needed).
+        :param request_kwargs: Optional dict of extra keyword arguments forwarded to aiohttp request call
+            (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.get(...).
         :return: API response as dict of JSON structure
         :rtype: dict
         """
@@ -98,10 +102,12 @@ class OpenPlantBookApi:
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
-        params = {"lang": lang} if lang else None
+        query_params = dict(params) if params else {}
+        if lang is not None:
+            query_params["lang"] = lang
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-                async with session.get(url, params=params) as result:
+                async with session.get(url, params=(query_params or None), **(request_kwargs or {})) as result:
                     _LOGGER.debug("Fetched data from %s", url)
                     res = await result.json()
                     return res
@@ -122,11 +128,14 @@ class OpenPlantBookApi:
 
         # return None
 
-    async def async_plant_search(self, search_text: str):
+    async def async_plant_search(self, search_text: str, params: dict = None, request_kwargs: dict = None):
         """
         Search plant by search string
 
         :type search_text: Search text
+        :param params: Optional dict of additional query parameters to pass through to the API request.
+        :param request_kwargs: Optional dict of extra keyword arguments forwarded to aiohttp request call
+            (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.get(...).
         :return: API response as dict of JSON structure
         :rtype: dict
         """
@@ -142,7 +151,7 @@ class OpenPlantBookApi:
         }
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-                async with session.get(url) as result:
+                async with session.get(url, params=(params or None), **(request_kwargs or {})) as result:
                     _LOGGER.debug("Fetched data from %s", url)
                     res = await result.json()
                     return res
@@ -168,7 +177,8 @@ class OpenPlantBookApi:
 
     async def async_plant_instance_register(self, sensor_pid_map: dict, location_by_ip: bool = None,
                                             location_country: str = None, location_lon: float = None,
-                                            location_lat: float = None):
+                                            location_lat: float = None, extra_json: dict = None, params: dict = None,
+                                            request_kwargs: dict = None):
         """
         Register a plant sensor
 
@@ -177,6 +187,11 @@ class OpenPlantBookApi:
         :param location_country: Country location of the plant
         :param location_lon: Location longitude of the plant
         :param location_lat: Location latitude of the plant
+        :param extra_json: Optional dict merged into the JSON payload. Useful for passing additional fields supported
+            by the API (e.g., location_name, location_region).
+        :param params: Optional dict of additional query parameters to pass through to the API request.
+        :param request_kwargs: Optional dict of extra keyword arguments forwarded to aiohttp request call
+            (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.post(...).
         :return: JSON dict with API response
         :rtype: dict
         :raise [ValidationError]: API could not validate JSON payload due to some errors which are returned within the exception's attribute 'errors'
@@ -207,6 +222,8 @@ class OpenPlantBookApi:
         for k, v in clean_items.items():
             if v is None:
                 api_payload.pop(k)
+        if extra_json:
+            api_payload.update(extra_json)
 
         try:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
@@ -220,7 +237,7 @@ class OpenPlantBookApi:
                     api_payload['custom_id'] = custom_id_value
                     api_payload['pid'] = pid_value
 
-                    async with session.post(url, json=api_payload, raise_for_status=False) as result:
+                    async with session.post(url, json=api_payload, params=(params or None), raise_for_status=False, **(request_kwargs or {})) as result:
                         res = await result.json()
                         if result.status == 400 and res['type'] == "validation_error":
                             raise ValidationError(res['errors'])
@@ -253,7 +270,7 @@ class OpenPlantBookApi:
 
         # return None
 
-    async def async_plant_data_upload(self, jts_doc: JtsDocument, dry_run=False):
+    async def async_plant_data_upload(self, jts_doc: JtsDocument, dry_run=False, params: dict = None, request_kwargs: dict = None):
         """
         Upload plant's sensor data
 
@@ -261,6 +278,10 @@ class OpenPlantBookApi:
         :type dry_run: bool
         :param jts_doc: One or multiple sensors data as JtsDocument object
         :type jts_doc: JtsDocument
+        :param params: Optional dict of additional query parameters to pass through to the API request. The 'dry_run'
+            value from the dedicated argument will be merged into this dict (and can be overridden here if needed).
+        :param request_kwargs: Optional dict of extra keyword arguments forwarded to aiohttp request call
+            (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.post(...).
         :return: True if successful
         :rtype: bool
         """
@@ -281,7 +302,10 @@ class OpenPlantBookApi:
             async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
 
                 url = f"{self._PLANTBOOK_BASEURL}/sensor-data/upload"
-                async with session.post(url, json=jts_doc.toJSON(), params={"dry_run": str(dry_run)}) as result:
+                query_params = {"dry_run": str(dry_run)}
+                if params:
+                    query_params.update(params)
+                async with session.post(url, json=jts_doc.toJSON(), params=query_params, **(request_kwargs or {})) as result:
                     _LOGGER.debug("Uploading sensor data: %s", jts_doc.toJSONString())
                     res = await result.json(content_type=None)
                     return result.ok
