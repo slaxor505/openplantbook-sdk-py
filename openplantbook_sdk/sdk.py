@@ -34,6 +34,10 @@ class OpenPlantBookApi:
     async def _async_get_token(self):
         """
         Get OAuth token
+
+        :raise [MissingClientIdOrSecret]: Client ID or Secret is missing
+        :raise [PermissionError]: Authentication failed
+        :raise [RateLimitError]: API returns 429 Too Many Requests
         """
         if not self.client_id or not self.secret:
             raise MissingClientIdOrSecret
@@ -70,6 +74,12 @@ class OpenPlantBookApi:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
             raise
+        except aiohttp.ClientResponseError as err:
+            if err.status == 429:
+                _LOGGER.error("Rate limit exceeded (429): %s", err)
+                raise RateLimitError from err
+            _LOGGER.error(err)
+            raise
         except aiohttp.ClientError as err:
             _LOGGER.error(err)
             raise
@@ -90,6 +100,9 @@ class OpenPlantBookApi:
             (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.get(...).
         :return: API response as dict of JSON structure
         :rtype: dict
+        :raise [MissingClientIdOrSecret]: Client ID or Secret is missing
+        :raise [PermissionError]: Authentication failed
+        :raise [RateLimitError]: API returns 429 Too Many Requests
         """
 
         try:
@@ -98,7 +111,7 @@ class OpenPlantBookApi:
             _LOGGER.error("No plantbook token")
             raise
 
-        url = f"{self._PLANTBOOK_BASEURL}/plant/detail/{pid}"
+        url = f"{self._PLANTBOOK_BASEURL}/plant/detail/{pid}/"
         headers = {
             "Authorization": f"Bearer {self.token.get('access_token')}"
         }
@@ -119,6 +132,12 @@ class OpenPlantBookApi:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
             return None
+        except aiohttp.ClientResponseError as err:
+            if err.status == 429:
+                _LOGGER.error("Rate limit exceeded (429): %s", err)
+                raise RateLimitError from err
+            _LOGGER.error(err)
+            return None
         except aiohttp.ClientError as err:
             _LOGGER.error(err)
             return None
@@ -138,6 +157,9 @@ class OpenPlantBookApi:
             (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.get(...).
         :return: API response as dict of JSON structure
         :rtype: dict
+        :raise [MissingClientIdOrSecret]: Client ID or Secret is missing
+        :raise [PermissionError]: Authentication failed
+        :raise [RateLimitError]: API returns 429 Too Many Requests
         """
         try:
             await self._async_get_token()
@@ -162,6 +184,12 @@ class OpenPlantBookApi:
         except aiohttp.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
+            return None
+        except aiohttp.ClientResponseError as err:
+            if err.status == 429:
+                _LOGGER.error("Rate limit exceeded (429): %s", err)
+                raise RateLimitError from err
+            _LOGGER.error(err)
             return None
         except aiohttp.ClientError as err:
             _LOGGER.error(err)
@@ -192,12 +220,12 @@ class OpenPlantBookApi:
         :param params: Optional dict of additional query parameters to pass through to the API request.
         :param request_kwargs: Optional dict of extra keyword arguments forwarded to aiohttp request call
             (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.post(...).
-        :return: JSON dict with API response
-        :rtype: dict
+        :return: List of JSON dicts with API response, or None if a network error occurs.
+        :rtype: list
         :raise [ValidationError]: API could not validate JSON payload due to some errors which are returned within the exception's attribute 'errors'
-        :raise [aiohttp.ClientError]: [aiohttp client error exception]
-        :raise [aiohttp.ServerTimeoutError]: [aiohttp exception]
-        :raise [aiohttp.aiohttp.TooManyRedirects]: [aiohttp exception]
+        :raise [MissingClientIdOrSecret]: Client ID or Secret is missing
+        :raise [PermissionError]: Authentication failed
+        :raise [RateLimitError]: API returns 429 Too Many Requests
         """
         try:
             await self._async_get_token()
@@ -263,7 +291,12 @@ class OpenPlantBookApi:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
             return None
-
+        except aiohttp.ClientResponseError as err:
+            if err.status == 429:
+                _LOGGER.error("Rate limit exceeded (429): %s", err)
+                raise RateLimitError from err
+            _LOGGER.error(err)
+            return None
         # except aiohttp.ClientError as err:
         #     _LOGGER.error(err)
         #     return None
@@ -284,6 +317,9 @@ class OpenPlantBookApi:
             (e.g., timeout, ssl, proxy, allow_redirects). These are passed to session.post(...).
         :return: True if successful
         :rtype: bool
+        :raise [MissingClientIdOrSecret]: Client ID or Secret is missing
+        :raise [PermissionError]: Authentication failed
+        :raise [RateLimitError]: API returns 429 Too Many Requests
         """
 
         try:
@@ -317,6 +353,12 @@ class OpenPlantBookApi:
         except aiohttp.TooManyRedirects:
             # Tell the user their URL was bad and try a different one
             _LOGGER.error("Too many redirects connecting to {}".format(url))
+            return None
+        except aiohttp.ClientResponseError as err:
+            if err.status == 429:
+                _LOGGER.error("Rate limit exceeded (429): %s", err)
+                raise RateLimitError from err
+            _LOGGER.error(err)
             return None
         except aiohttp.ClientError as err:
             _LOGGER.error(err)
@@ -418,6 +460,11 @@ class OpenPlantBookApi:
 
 class MissingClientIdOrSecret(Exception):
     """Exception for missing client_id or token."""
+    pass
+
+
+class RateLimitError(Exception):
+    """Raise when API returns 429 Too Many Requests"""
     pass
 
 

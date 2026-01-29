@@ -1,10 +1,11 @@
 import asyncio
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import aiohttp
 
 from openplantbook_sdk import OpenPlantBookApi
+from openplantbook_sdk.sdk import RateLimitError
 
 
 class _RaisingSession:
@@ -114,6 +115,18 @@ class TestErrorHandlingOffline(unittest.TestCase):
              patch.object(OpenPlantBookApi, "_async_get_token", new=_fake_get_token):
             res = asyncio.run(self.api.async_plant_detail_get("pid"))
         self.assertIsNone(res)
+
+    def test_detail_raises_ratelimit_on_429(self):
+        err = aiohttp.ClientResponseError(
+            request_info=MagicMock(),
+            history=(),
+            status=429,
+            message="Too Many Requests"
+        )
+        with self._run_with_exc(err), \
+             patch.object(OpenPlantBookApi, "_async_get_token", new=_fake_get_token):
+            with self.assertRaises(RateLimitError):
+                asyncio.run(self.api.async_plant_detail_get("pid"))
 
 
 class _DummyJts:
