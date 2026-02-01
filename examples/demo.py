@@ -40,7 +40,7 @@ except Exception as e:
     sys.exit()
 
 print("Found:")
-print(tabulate(res['results'], headers={'pid': 'PID', 'display_pid': 'Display PID', 'alias': 'Alias'}, tablefmt="psql"))
+print(tabulate(res['results'], headers={'pid': 'PID', 'display_pid': 'Display PID', 'alias': 'Alias', 'origin': 'Origin'}, tablefmt="psql"))
 print("{} plants found".format(len(res['results'])))
 
 
