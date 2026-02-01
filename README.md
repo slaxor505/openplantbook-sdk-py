@@ -44,9 +44,10 @@ asyncio.run(main())
 ```
 
 - The `lang` parameter is optional; pass an ISO 639-1 code like "en", "de", "es" to localize fields when supported by the API.
+- **Metadata Mapping**: The SDK automatically maps fallback fields to standard keys for convenience:
+    - `origin`: populated from `native_location`, `native_distribution`, `native_range`, `distribution`, or `native_region`.
+    - `scientific_name`: populated from `species` if missing.
+    - `category`: populated from `plant_type` or `type` if missing.
 
-See [demo.py](examples/demo.py) for a more complete walkthrough.
-
-
-## License
+## Installation from Source (Development)
 MIT

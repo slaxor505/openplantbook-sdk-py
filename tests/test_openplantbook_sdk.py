@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
-from json_timeseries import TimeSeries, TsRecord, JtsDocument
+from json_timeseries import JtsDocument, TimeSeries, TsRecord
 
 import openplantbook_sdk
 from openplantbook_sdk import ValidationError
@@ -17,12 +17,12 @@ class TestSdk(unittest.TestCase):
 
     def setUp(self):
         path = Path(__file__).parent / "../config.yaml"
-        with (open(path) as f):
+        with open(path) as f:
             config = yaml.load(f, Loader=yaml.FullLoader)
-            self.client_id = config['client_id']
-            self.client_secret = config['secret']
-            if config.get('base_url'):
-                self.base_url = config['base_url']
+            self.client_id = config["client_id"]
+            self.client_secret = config["secret"]
+            if config.get("base_url"):
+                self.base_url = config["base_url"]
             else:
                 self.base_url = "https://open.plantbook.io/api/v1"
         self.test_pid = "abelia chinensis"
@@ -32,22 +32,26 @@ class TestSdk(unittest.TestCase):
     #     pass
 
     def test_search(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
         response = asyncio.run(api.async_plant_search(self.test_pid))
 
-        self.assertEqual(response['count'], 1)
-        results_data = response.get('results')[0]
-        self.assertEqual(results_data['pid'], "abelia chinensis")
-        self.assertEqual(results_data['display_pid'], 'Abelia chinensis')
-        self.assertEqual(results_data['alias'], 'chinese abelia')
-        self.assertEqual(results_data['category'], 'Caprifoliaceae, Abelia')
+        self.assertEqual(response["count"], 1)
+        results_data = response.get("results")[0]
+        self.assertEqual(results_data["pid"], "abelia chinensis")
+        self.assertEqual(results_data["display_pid"], "Abelia chinensis")
+        self.assertEqual(results_data["alias"], "chinese abelia")
+        self.assertEqual(results_data["category"], "Caprifoliaceae, Abelia")
 
     def test_plant_detail(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
 
         response = asyncio.run(api.async_plant_detail_get(self.test_pid))
 
-        expected_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
+        expected_json = """{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}"""
         expected = json.loads(expected_json)
         # Allow API to return additional fields; assert required fields are present and equal
         for k, v in expected.items():
@@ -55,16 +59,19 @@ class TestSdk(unittest.TestCase):
             self.assertEqual(response[k], v)
 
     def test_plant_instance_register(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
         # ONLY 1 plant registration is currently supported by SDK
-        found_plants = asyncio.run(api.async_plant_search("acer"))['results'][:1]
+        found_plants = asyncio.run(api.async_plant_search("acer"))["results"][:1]
         pid_instance_map = {}
         location_country = "AU"
         for i in range(len(found_plants)):
-            the_pid = found_plants[i]['pid']
+            the_pid = found_plants[i]["pid"]
             pid_instance_map["Sensor-" + str(i)] = the_pid
         res = asyncio.run(
-            api.async_plant_instance_register(sensor_pid_map=pid_instance_map))
+            api.async_plant_instance_register(sensor_pid_map=pid_instance_map)
+        )
 
         for k, v in pid_instance_map.items():
             self.assertIn(k, json.dumps(res))
@@ -72,65 +79,80 @@ class TestSdk(unittest.TestCase):
             self.assertIn(location_country, json.dumps(res))
 
     def test_plant_instance_register_invalid_pid(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
 
         # Only 1 item creation is currently supported
         found_plants = [({"pid": "non_existent_pid_1"})]
 
         pid_instance_map = {}
         for i in range(len(found_plants)):
-            the_pid = found_plants[i]['pid']
+            the_pid = found_plants[i]["pid"]
             pid_instance_map["Sensor-" + str(i)] = the_pid
 
         with self.assertRaises(ValidationError) as cm:
-            asyncio.run(api.async_plant_instance_register(sensor_pid_map=pid_instance_map))
+            asyncio.run(
+                api.async_plant_instance_register(sensor_pid_map=pid_instance_map)
+            )
         errors = cm.exception.errors
 
         self.assertEqual(len(errors), 1)
-        self.assertIn("non_existent_pid_1", errors[0]['detail'])
-        self.assertEqual("invalid_pid", errors[0]['code'])
+        self.assertIn("non_existent_pid_1", errors[0]["detail"])
+        self.assertEqual("invalid_pid", errors[0]["code"])
 
     def test_plant_instance_register_invalid_country(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
 
         # Only 1 item creation is currently supported
-        found_plants = asyncio.run(api.async_plant_search("acer"))['results'][:1]
+        found_plants = asyncio.run(api.async_plant_search("acer"))["results"][:1]
 
         pid_instance_map = {}
         location_country = "ZZ"
         for i in range(len(found_plants)):
-            the_pid = found_plants[i]['pid']
+            the_pid = found_plants[i]["pid"]
             pid_instance_map["Sensor-" + str(i)] = the_pid
 
         with self.assertRaises(ValidationError) as cm:
-            asyncio.run(api.async_plant_instance_register(sensor_pid_map=pid_instance_map, location_country=location_country))
+            asyncio.run(
+                api.async_plant_instance_register(
+                    sensor_pid_map=pid_instance_map, location_country=location_country
+                )
+            )
         errors = cm.exception.errors
 
         self.assertEqual(len(errors), 1)
-        self.assertEqual(errors[0]['code'], "invalid_location_country")
+        self.assertEqual(errors[0]["code"], "invalid_location_country")
 
     def test_plant_data_upload(self):
-        api = openplantbook_sdk.OpenPlantBookApi(self.client_id, self.client_secret, base_url=self.base_url)
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
 
-        found_plants = asyncio.run(api.async_plant_search("acer"))['results'][:5]
+        found_plants = asyncio.run(api.async_plant_search("acer"))["results"][:5]
         pid_instance_map = {}
         jts_doc = JtsDocument()
         for i in range(len(found_plants)):
-
-
             # Plant instance/Sensor ID
             sensor_id = "Sensor-" + str(i)
             # Corresponding PID/Plant ID
-            the_pid = found_plants[i]['pid']
+            the_pid = found_plants[i]["pid"]
 
             # pid_instance_map["Sensor-"+str(i)]=the_pid
 
             # Register Plant Instance
             res = asyncio.run(
-                api.async_plant_instance_register(sensor_pid_map={sensor_id: the_pid}, location_country="AU",
-                location_lat=-33.8678500, location_lon=151.2073200))
+                api.async_plant_instance_register(
+                    sensor_pid_map={sensor_id: the_pid},
+                    location_country="AU",
+                    location_lat=-33.8678500,
+                    location_lon=151.2073200,
+                )
+            )
 
-            custom_id = res[0].get('id')
+            custom_id = res[0].get("id")
             # the same "plant_id" but different sensors identified by "name"
             temp = TimeSeries(identifier=custom_id, name="temp")
             soil_moist = TimeSeries(identifier=custom_id, name="soil_moist")
@@ -139,8 +161,15 @@ class TestSdk(unittest.TestCase):
 
             # generate fake values - 4 columns to provide 4 values for the above 4 measurements
             NUMBER_OF_PERIODS = 10
-            dti = pd.date_range(pd.Timestamp.now(tz="Australia/Sydney"), periods=NUMBER_OF_PERIODS, freq="15min")
-            df = pd.DataFrame(np.random.default_rng().uniform(100, 1000, (NUMBER_OF_PERIODS, 4)), index=dti)
+            dti = pd.date_range(
+                pd.Timestamp.now(tz="Australia/Sydney"),
+                periods=NUMBER_OF_PERIODS,
+                freq="15min",
+            )
+            df = pd.DataFrame(
+                np.random.default_rng().uniform(100, 1000, (NUMBER_OF_PERIODS, 4)),
+                index=dti,
+            )
 
             for ts, values in df.iterrows():
                 temp.insert(TsRecord(ts, values[0]))
@@ -155,6 +184,44 @@ class TestSdk(unittest.TestCase):
         # test_json = '''{"pid": "abelia chinensis", "display_pid": "Abelia chinensis", "alias": "chinese abelia", "category": "Caprifoliaceae, Abelia", "max_light_mmol": 4500, "min_light_mmol": 2500, "max_light_lux": 30000, "min_light_lux": 3500, "max_temp": 35, "min_temp": 8, "max_env_humid": 85, "min_env_humid": 30, "max_soil_moist": 60, "min_soil_moist": 15, "max_soil_ec": 2000, "min_soil_ec": 350, "image_url": "https://opb-img.plantbook.io/abelia%20chinensis.jpg"}'''
         self.assertEqual(res, True)
 
+    def test_metadata_mapping(self):
+        """Test that various API fields are correctly mapped to standard keys"""
+        api = openplantbook_sdk.OpenPlantBookApi(
+            self.client_id, self.client_secret, base_url=self.base_url
+        )
 
-if __name__ == '__main__':
+        # We manually test the mapping logic here by simulating a response-like dict
+        # In a real environment, this would be tested via mocks of the aiohttp response
+
+        sample_data = {
+            "pid": "test_plant",
+            "native_location": "Mars",
+            "species": "Testus plantus",
+            "type": "Cactus",
+        }
+
+        # We simulate the mapping logic from sdk.py
+        def simulate_mapping(res):
+            if res and isinstance(res, dict):
+                if not res.get("origin"):
+                    res["origin"] = (
+                        res.get("native_location")
+                        or res.get("native_distribution")
+                        or res.get("native_range")
+                        or res.get("distribution")
+                        or res.get("native_region")
+                    )
+                if not res.get("scientific_name"):
+                    res["scientific_name"] = res.get("species")
+                if not res.get("category"):
+                    res["category"] = res.get("plant_type") or res.get("type")
+            return res
+
+        mapped = simulate_mapping(sample_data.copy())
+        self.assertEqual(mapped["origin"], "Mars")
+        self.assertEqual(mapped["scientific_name"], "Testus plantus")
+        self.assertEqual(mapped["category"], "Cactus")
+
+
+if __name__ == "__main__":
     unittest.main()

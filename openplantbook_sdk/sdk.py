@@ -42,7 +42,7 @@ class OpenPlantBookApi:
         if not self.client_id or not self.secret:
             raise MissingClientIdOrSecret
         if self.token:
-            expires = datetime.fromisoformat(self.token.get('expires'))
+            expires = datetime.fromisoformat(self.token.get("expires"))
             if expires > datetime.now() + timedelta(minutes=5):
                 _LOGGER.debug("Token is still valid")
                 return True
@@ -59,7 +59,9 @@ class OpenPlantBookApi:
                     token = await result.json()
                     if token.get("access_token"):
                         _LOGGER.debug("Got token from %s", url)
-                        token["expires"] = (datetime.now() + timedelta(seconds=token["expires_in"])).isoformat()
+                        token["expires"] = (
+                            datetime.now() + timedelta(seconds=token["expires_in"])
+                        ).isoformat()
                         self.token = token
                         return True
                     raise PermissionError
@@ -88,7 +90,13 @@ class OpenPlantBookApi:
             _LOGGER.error("Unable to connect to OpenPlantbook: %s", str(e))
             raise
 
-    async def async_plant_detail_get(self, pid: str, lang: str = None, params: dict = None, request_kwargs: dict = None):
+    async def async_plant_detail_get(
+        self,
+        pid: str,
+        lang: str = None,
+        params: dict = None,
+        request_kwargs: dict = None,
+    ):
         """
         Retrieve plant details using Plant ID (or PID)
 
@@ -112,17 +120,32 @@ class OpenPlantBookApi:
             raise
 
         url = f"{self._PLANTBOOK_BASEURL}/plant/detail/{pid}/"
-        headers = {
-            "Authorization": f"Bearer {self.token.get('access_token')}"
-        }
+        headers = {"Authorization": f"Bearer {self.token.get('access_token')}"}
         query_params = dict(params) if params else {}
         if lang is not None:
             query_params["lang"] = lang
         try:
-            async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-                async with session.get(url, params=(query_params or None), **(request_kwargs or {})) as result:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, headers=headers
+            ) as session:
+                async with session.get(
+                    url, params=(query_params or None), **(request_kwargs or {})
+                ) as result:
                     _LOGGER.debug("Fetched data from %s", url)
                     res = await result.json()
+                    if res and isinstance(res, dict):
+                        if not res.get("origin"):
+                            res["origin"] = (
+                                res.get("native_location")
+                                or res.get("native_distribution")
+                                or res.get("native_range")
+                                or res.get("distribution")
+                                or res.get("native_region")
+                            )
+                        if not res.get("scientific_name"):
+                            res["scientific_name"] = res.get("species")
+                        if not res.get("category"):
+                            res["category"] = res.get("plant_type") or res.get("type")
                     return res
         except aiohttp.ServerTimeoutError:
             # Maybe set up for a retry, or continue in a retry loop
@@ -147,7 +170,9 @@ class OpenPlantBookApi:
 
         # return None
 
-    async def async_plant_search(self, search_text: str, params: dict = None, request_kwargs: dict = None):
+    async def async_plant_search(
+        self, search_text: str, params: dict = None, request_kwargs: dict = None
+    ):
         """
         Search plant by search string
 
@@ -168,14 +193,32 @@ class OpenPlantBookApi:
             raise
 
         url = f"{self._PLANTBOOK_BASEURL}/plant/search?alias={search_text}"
-        headers = {
-            "Authorization": f"Bearer {self.token.get('access_token')}"
-        }
+        headers = {"Authorization": f"Bearer {self.token.get('access_token')}"}
         try:
-            async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-                async with session.get(url, params=(params or None), **(request_kwargs or {})) as result:
+            async with aiohttp.ClientSession(
+                raise_for_status=True, headers=headers
+            ) as session:
+                async with session.get(
+                    url, params=(params or None), **(request_kwargs or {})
+                ) as result:
                     _LOGGER.debug("Fetched data from %s", url)
                     res = await result.json()
+                    if res and isinstance(res, dict) and "results" in res:
+                        for item in res["results"]:
+                            if not item.get("origin"):
+                                item["origin"] = (
+                                    item.get("native_location")
+                                    or item.get("native_distribution")
+                                    or item.get("native_range")
+                                    or item.get("distribution")
+                                    or item.get("native_region")
+                                )
+                            if not item.get("scientific_name"):
+                                item["scientific_name"] = item.get("species")
+                            if not item.get("category"):
+                                item["category"] = item.get("plant_type") or item.get(
+                                    "type"
+                                )
                     return res
         except aiohttp.ServerTimeoutError:
             # Maybe set up for a retry, or continue in a retry loop
@@ -203,10 +246,17 @@ class OpenPlantBookApi:
     #         _LOGGER.debug("Registered sensor %s", api_payload)
     #         res = await result.json(content_type=None)
 
-    async def async_plant_instance_register(self, sensor_pid_map: dict, location_by_ip: bool = None,
-                                            location_country: str = None, location_lon: float = None,
-                                            location_lat: float = None, extra_json: dict = None, params: dict = None,
-                                            request_kwargs: dict = None):
+    async def async_plant_instance_register(
+        self,
+        sensor_pid_map: dict,
+        location_by_ip: bool = None,
+        location_country: str = None,
+        location_lon: float = None,
+        location_lat: float = None,
+        extra_json: dict = None,
+        params: dict = None,
+        request_kwargs: dict = None,
+    ):
         """
         Register a plant sensor
 
@@ -234,9 +284,7 @@ class OpenPlantBookApi:
             raise
 
         url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
-        headers = {
-            "Authorization": f"Bearer {self.token.get('access_token')}"
-        }
+        headers = {"Authorization": f"Bearer {self.token.get('access_token')}"}
         api_payload = {
             "location_country": location_country,
             "location_by_IP": location_by_ip,
@@ -254,21 +302,27 @@ class OpenPlantBookApi:
             api_payload.update(extra_json)
 
         try:
-            async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-
+            async with aiohttp.ClientSession(
+                raise_for_status=True, headers=headers
+            ) as session:
                 results = []
                 for custom_id_value, pid_value in sensor_pid_map.items():
-
                     # TODO N: Multiple items is not working properly because if failure occurs with one of the items
                     #  the entire transaction stops and partial result is observed. I need to continue to create
                     #  until the end and report back only faulty ones or rollback (not possible) entire transaction
-                    api_payload['custom_id'] = custom_id_value
-                    api_payload['pid'] = pid_value
+                    api_payload["custom_id"] = custom_id_value
+                    api_payload["pid"] = pid_value
 
-                    async with session.post(url, json=api_payload, params=(params or None), raise_for_status=False, **(request_kwargs or {})) as result:
+                    async with session.post(
+                        url,
+                        json=api_payload,
+                        params=(params or None),
+                        raise_for_status=False,
+                        **(request_kwargs or {}),
+                    ) as result:
                         res = await result.json()
-                        if result.status == 400 and res['type'] == "validation_error":
-                            raise ValidationError(res['errors'])
+                        if result.status == 400 and res["type"] == "validation_error":
+                            raise ValidationError(res["errors"])
 
                         result.raise_for_status()
 
@@ -303,7 +357,13 @@ class OpenPlantBookApi:
 
         # return None
 
-    async def async_plant_data_upload(self, jts_doc: JtsDocument, dry_run=False, params: dict = None, request_kwargs: dict = None):
+    async def async_plant_data_upload(
+        self,
+        jts_doc: JtsDocument,
+        dry_run=False,
+        params: dict = None,
+        request_kwargs: dict = None,
+    ):
         """
         Upload plant's sensor data
 
@@ -328,20 +388,24 @@ class OpenPlantBookApi:
             _LOGGER.error("No plantbook token")
             raise
 
-        headers = {
-            "Authorization": f"Bearer {self.token.get('access_token')}"
-        }
+        headers = {"Authorization": f"Bearer {self.token.get('access_token')}"}
 
         url = f"{self._PLANTBOOK_BASEURL}/sensor-data/instance"
 
         try:
-            async with aiohttp.ClientSession(raise_for_status=True, headers=headers) as session:
-
+            async with aiohttp.ClientSession(
+                raise_for_status=True, headers=headers
+            ) as session:
                 url = f"{self._PLANTBOOK_BASEURL}/sensor-data/upload"
                 query_params = {"dry_run": str(dry_run)}
                 if params:
                     query_params.update(params)
-                async with session.post(url, json=jts_doc.toJSON(), params=query_params, **(request_kwargs or {})) as result:
+                async with session.post(
+                    url,
+                    json=jts_doc.toJSON(),
+                    params=query_params,
+                    **(request_kwargs or {}),
+                ) as result:
                     _LOGGER.debug("Uploading sensor data: %s", jts_doc.toJSONString())
                     res = await result.json(content_type=None)
                     return result.ok
@@ -460,11 +524,13 @@ class OpenPlantBookApi:
 
 class MissingClientIdOrSecret(Exception):
     """Exception for missing client_id or token."""
+
     pass
 
 
 class RateLimitError(Exception):
     """Raise when API returns 429 Too Many Requests"""
+
     pass
 
 
@@ -474,4 +540,4 @@ class ValidationError(Exception):
         self.errors = errors
 
     def __str__(self):
-        return f'API returned {self.errors}'
+        return f"API returned {self.errors}"
