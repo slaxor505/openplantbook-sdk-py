@@ -75,7 +75,7 @@ class TestAsyncPlantDetailLangOffline(unittest.TestCase):
         self.assertIn("Authorization", sess.headers)
         self.assertTrue(sess.headers["Authorization"].startswith("Bearer "))
         # Assert that the request URL targets the expected endpoint
-        self.assertTrue(sess.last_get_url.endswith("/plant/detail/abelia chinensis"))
+        self.assertTrue(sess.last_get_url.endswith("/plant/detail/abelia chinensis/"))
         # Critical assertion: 'lang' param is forwarded
         self.assertEqual(sess.last_get_params, {"lang": "de"})
 

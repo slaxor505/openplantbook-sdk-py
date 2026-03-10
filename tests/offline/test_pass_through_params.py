@@ -118,7 +118,7 @@ class TestPassThroughParamsOffline(unittest.TestCase):
         self.assertIn("Authorization", sess.headers)
         self.assertTrue(sess.headers["Authorization"].startswith("Bearer "))
         # Request URL targets the expected endpoint
-        self.assertTrue(sess.last_get_url.endswith("/plant/detail/abelia chinensis"))
+        self.assertTrue(sess.last_get_url.endswith("/plant/detail/abelia chinensis/"))
         # 'lang' from explicit arg overrides value in params; other params are preserved
         self.assertEqual(sess.last_get_params, {"lang": "de", "page": "2"})
         # request_kwargs forwarded to session.get
